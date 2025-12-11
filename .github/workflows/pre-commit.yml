@@ -1,3 +1,7 @@
+permissions:
+  contents: write
+  workflows: write
+
 name: pre-commit
 on: [pull_request]
 
