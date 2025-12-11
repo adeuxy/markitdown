@@ -59,30 +59,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 克隆 Fork 仓库
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+      - name: 克隆 Fork 仓库（启用 sparse-checkout）
+        run: |
+          git clone --filter=blob:none https://github.com/adeuxy/markitdown.git repo
+          cd repo
+          git sparse-checkout init --cone
+          git sparse-checkout set .
+          # 排除 workflow 目录
+          echo "!/.github/workflows" >> .git/info/sparse-checkout
+
+      - name: 切换目录
+        run: cd repo
 
       - name: 配置 Git
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          cd repo
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-      - name: 检查当前状态
+      - name: 添加 upstream
         run: |
-          git status
-
-      - name: 合并上游更新（自动选择 upstream 版本）
-        run: |
+          cd repo
           git remote add upstream https://github.com/microsoft/markitdown.git
           git fetch upstream
+
+      - name: 合并（不会包含 workflow 文件）
+        run: |
+          cd repo
           git merge -X theirs upstream/main || true
 
-      - name: 推送合并后的代码到 Fork
+      - name: 推送
         run: |
+          cd repo
+          git remote set-url origin https://$PAT_PUSH@github.com/adeuxy/markitdown.git
           git push origin main
+        env:
+          PAT_PUSH: ${{ secrets.PAT }}
 
   build-and-push:
     needs: merge-updates
