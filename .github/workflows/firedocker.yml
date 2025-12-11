@@ -80,6 +80,11 @@ jobs:
           git fetch upstream
           git merge -X theirs upstream/main || true
 
+      - name: 移除 workflow 文件的变更（避免 GitHub 禁止 push）
+        run: |
+          git restore --staged .github/workflows/ || true
+          git restore .github/workflows/ || true
+
       - name: 推送合并后的代码到 Fork
         run: |
           git remote set-url origin https://$PAT_PUSH@github.com/adeuxy/markitdown.git
