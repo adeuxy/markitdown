@@ -1,0 +1,119 @@
+name: Check Updates, Merge and Build Docker Image
+
+on:
+  schedule:
+    - cron: "0 11 * * 3"   # 每周三 11:00
+  workflow_dispatch:
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      trigger_build: ${{ steps.check.outputs.has_update }}
+
+    steps:
+      - name: 克隆 Fork 仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史
+
+      - name: 添加上游仓库并获取最新更新
+        id: check
+        run: |
+          # 添加上游仓库并拉取最新更新
+          git remote add upstream https://github.com/microsoft/markitdown.git
+          git fetch upstream
+
+          # 获取 Fork 和 Upstream 的提交信息
+          latest_fork_commit=$(git rev-parse HEAD)
+          latest_upstream_commit=$(git rev-parse upstream/main)
+
+          # 获取 Fork 和 Upstream 最新提交的时间（UNIX 时间戳）
+          latest_fork_time=$(git log -1 --format=%ct $latest_fork_commit)
+          latest_upstream_time=$(git log -1 --format=%ct $latest_upstream_commit)
+
+          echo "Fork 最新提交: $latest_fork_commit"
+          echo "Upstream 最新提交: $latest_upstream_commit"
+          echo "Fork 提交时间: $latest_fork_time"
+          echo "Upstream 提交时间: $latest_upstream_time"
+
+          # 检查是否有更新并且远端提交时间大于本地提交时间
+          if [ "$latest_fork_commit" != "$latest_upstream_commit" ] && [ "$latest_upstream_time" -gt "$latest_fork_time" ]; then
+            echo "上游有更新，且远端提交时间更晚"
+            echo "has_update=true" >> $GITHUB_ENV
+            echo "has_update=true" >> $GITHUB_OUTPUT
+          else
+            echo "没有更新或远端提交时间不晚"
+            echo "has_update=true" >> $GITHUB_ENV
+            echo "has_update=true" >> $GITHUB_OUTPUT
+          fi  # 确保 if 语句闭合
+
+      - name: 输出 Git 状态和日志（用于调试）
+        run: |
+          git status
+          git log --oneline -n 5
+          
+  merge-updates:
+    needs: check-updates
+    if: needs.check-updates.outputs.trigger_build == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 克隆 Fork 仓库
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 配置 Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 检查当前状态
+        run: |
+          git status
+
+      - name: 合并上游更新（自动选择 upstream 版本）
+        run: |
+          git remote add upstream https://github.com/microsoft/markitdown.git
+          git fetch upstream
+          git merge -X theirs upstream/main || true
+
+      - name: 推送合并后的代码到 Fork
+        run: |
+          git push origin main
+
+  build-and-push:
+    needs: merge-updates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出最新代码
+        uses: actions/checkout@v4
+
+      - name: 登录 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 构建 Docker 镜像
+        run: |
+          docker build -t ${{ vars.DOCKER_USERNAME }}/markitdown:latest .
+
+      - name: 推送 Docker 镜像
+        run: |
+          docker push ${{ vars.DOCKER_USERNAME }}/markitdown:latest
+
+  notifyme:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Notification
+        uses: jefferyjob/notify-actions@v1
+        with:
+          NOTICE_TYPE: 'feishu'
+          MSG_TYPE: 'card'
+          STATUS: 'true'
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL_feishu }}
