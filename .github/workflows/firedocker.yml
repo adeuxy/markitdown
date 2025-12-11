@@ -82,10 +82,10 @@ jobs:
 
       - name: 推送合并后的代码到 Fork
         run: |
-          git remote set-url origin https://$PAT@github.com/adeuxy/markitdown.git
+          git remote set-url origin https://$PAT_PUSH@github.com/adeuxy/markitdown.git
           git push origin main
         env:
-          PAT: ${{ secrets.PAT }}
+          PAT_PUSH: ${{ secrets.PAT }}
 
   build-and-push:
     needs: merge-updates
