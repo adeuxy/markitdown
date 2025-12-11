@@ -85,7 +85,7 @@ jobs:
           git remote set-url origin https://$PAT@github.com/adeuxy/markitdown.git
           git push origin main
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          PAT: ${{ secrets.PAT }}
 
   build-and-push:
     needs: merge-updates
