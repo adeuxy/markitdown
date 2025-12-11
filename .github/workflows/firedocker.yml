@@ -83,6 +83,8 @@ jobs:
       - name: 推送合并后的代码到 Fork
         run: |
           git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
   build-and-push:
     needs: merge-updates
