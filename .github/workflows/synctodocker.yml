@@ -2,7 +2,7 @@ name: Check Updates, Merge and Build Docker Image
 
 on:
   schedule:
-    - cron: "0 * * * *" # 每小时运行一次
+    - cron: "0 11 * * 3"   # 每周三 11:00
   workflow_dispatch:
 
 jobs:
