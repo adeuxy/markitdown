@@ -1,4 +1,4 @@
-name: Check Updates, Merge and Build Docker Image
+name: temp
 
 on:
   schedule:
