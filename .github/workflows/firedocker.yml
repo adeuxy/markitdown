@@ -1,8 +1,8 @@
 name: temp
 
 on:
-  schedule:
-    - cron: "0 11 * * 3"   # 每周三 11:00
+#  schedule:
+#    - cron: "0 11 * * 3"   # 每周三 11:00
   workflow_dispatch:
 
 jobs:
